@@ -49,8 +49,8 @@ function fillHint(word: string): void {
   <main class="app-shell">
     <section class="game-header">
       <div>
-        <p class="eyebrow">Vue3 单机练习</p>
-        <h1>成语接龙</h1>
+        <!--<p class="eyebrow">Vue3 单机练习</p>-->
+        <h2>成语接龙</h2>
       </div>
 
       <div class="stats-row" aria-label="游戏统计">

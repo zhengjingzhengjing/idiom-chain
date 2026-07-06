@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
   canChain,
+  createCustomIdiom,
   findIdiom,
   getChainHint,
   getHintOptions,
@@ -32,7 +33,7 @@ export const useGameStore = defineStore('game', () => {
 
   function submitHumanIdiom(input: string): void {
     const word = normalizeIdiomInput(input)
-    const idiom = findIdiom(word)
+    const idiom = findIdiom(word) ?? createCustomIdiom(word)
 
     hintOptions.value = []
 
@@ -42,7 +43,7 @@ export const useGameStore = defineStore('game', () => {
     }
 
     if (!idiom) {
-      message.value = `「${word || '空输入'}」不在当前成语库中，可以换一个试试。`
+      message.value = `「${word || '空输入'}」看起来不像常规成语，请输入 4 到 8 个汉字。`
       return
     }
 
@@ -57,7 +58,7 @@ export const useGameStore = defineStore('game', () => {
     const aiIdiom = pickAiIdiom(idiom, usedWords.value, aiLevel.value)
     if (!aiIdiom) {
       status.value = 'won'
-      message.value = '你赢了！AI 已经接不上了。'
+      message.value = `接受「${idiom.word}」。你赢了！AI 已经接不上了。`
       return
     }
 
@@ -71,7 +72,9 @@ export const useGameStore = defineStore('game', () => {
     }
 
     status.value = 'playing'
-    message.value = `AI 接了「${aiIdiom.word}」，现在轮到你。`
+    message.value = findIdiom(word)
+      ? `AI 接了「${aiIdiom.word}」，现在轮到你。`
+      : `接受词库外成语「${idiom.word}」。AI 接了「${aiIdiom.word}」，现在轮到你。`
   }
 
   function startWithRandomIdiom(): void {

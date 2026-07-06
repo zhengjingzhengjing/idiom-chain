@@ -20,6 +20,23 @@ export function findIdiom(word: string): IdiomWithMeta | undefined {
   return idiomMap.get(normalizeIdiomInput(word))
 }
 
+export function createCustomIdiom(word: string): IdiomWithMeta | null {
+  const normalized = normalizeIdiomInput(word)
+
+  if (!isPlausibleIdiom(normalized)) {
+    return null
+  }
+
+  return {
+    word: normalized,
+    pinyin: '词库外输入',
+    definition: '这是你输入的词库外成语，系统会按首尾字继续接龙。',
+    difficulty: 'medium',
+    firstChar: normalized.at(0) ?? '',
+    lastChar: normalized.at(-1) ?? '',
+  }
+}
+
 export function canChain(previous: IdiomWithMeta, next: IdiomWithMeta): boolean {
   return previous.lastChar === next.firstChar
 }
@@ -84,4 +101,8 @@ function difficultyWeight(idiom: IdiomWithMeta): number {
   } satisfies Record<IdiomWithMeta['difficulty'], number>
 
   return weights[idiom.difficulty]
+}
+
+function isPlausibleIdiom(word: string): boolean {
+  return /^[\u4e00-\u9fff]{4,8}$/.test(word)
 }
