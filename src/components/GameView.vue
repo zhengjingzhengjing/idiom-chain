@@ -24,7 +24,7 @@ const {
 
 const input = ref('')
 const aiLevels: { label: string; value: AiLevel }[] = [
-  { label: '轻松1', value: 'easy' },
+  { label: '轻松', value: 'easy' },
   { label: '普通', value: 'normal' },
   { label: '挑战', value: 'hard' },
 ]
