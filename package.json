@@ -1,0 +1,21 @@
+{
+  "name": "idiom-chain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "pinia": "^3.0.3",
+    "vite": "^7.0.0",
+    "vue": "^3.5.17"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vue-tsc": "^2.2.12"
+  }
+}
