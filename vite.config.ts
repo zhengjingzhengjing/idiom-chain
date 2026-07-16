@@ -4,8 +4,10 @@ import { DEFAULT_DEEPSEEK_MODEL } from './src/enums/ai'
 import { requestDeepSeekIdiom } from './src/services/deepseekClient'
 import type { AiIdiomRequest } from './src/types/ai'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 export default defineConfig({
-  plugins: [vue(), deepSeekApiPlugin()],
+  plugins: [vue(), deepSeekApiPlugin(), cloudflare()],
 })
 
 function deepSeekApiPlugin(): Plugin {
