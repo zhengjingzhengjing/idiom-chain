@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@vitejs/plugin-vue": "^6.0.0",
@@ -15,7 +16,9 @@
     "vue": "^3.5.17"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.45.0",
     "typescript": "~5.8.3",
-    "vue-tsc": "^2.2.12"
+    "vue-tsc": "^2.2.12",
+    "wrangler": "^4.111.0"
   }
 }
