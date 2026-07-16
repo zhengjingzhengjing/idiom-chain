@@ -13,6 +13,7 @@ const {
   chainHint,
   currentIdiom,
   favorites,
+  hasAskedForHints,
   hintOptions,
   history,
   isAiThinking,
@@ -29,6 +30,18 @@ const aiLevels = Object.values(AiLevel)
 const canSubmit = computed(
   () => input.value.trim().length > 0 && !isAiThinking.value && status.value !== GameStatus.Won && status.value !== GameStatus.Lost,
 )
+
+const hintEmptyText = computed(() => {
+  if (!hasAskedForHints.value) {
+    return '点“提示”后，这里会显示本地词库能接上的成语。'
+  }
+
+  if (!currentIdiom.value) {
+    return '还没有当前成语。先开始一局，再看提示。'
+  }
+
+  return `本地词库没有「${currentIdiom.value.lastChar}」字开头的提示。你仍然可以自己输入，DeepSeek 会尝试接。`
+})
 
 async function submit(): Promise<void> {
   if (!canSubmit.value) {
@@ -62,7 +75,9 @@ function fillHint(word: string): void {
     <form class="input-panel" @submit.prevent="submit">
       <input v-model="input" type="text" autocomplete="off" placeholder="输入你的成语" :disabled="isAiThinking" />
       <button class="primary-button" type="submit" :disabled="!canSubmit">{{ isAiThinking ? '思考中' : '提交' }}</button>
-      <button class="secondary-button" type="button" :disabled="isAiThinking" @click="game.showHints">提示</button>
+      <button class="secondary-button" type="button" :disabled="isAiThinking" @click="game.showHints">
+        {{ hasAskedForHints ? '再提示' : '提示' }}
+      </button>
     </form>
 
     <p class="message">{{ message }}</p>
@@ -98,10 +113,10 @@ function fillHint(word: string): void {
           @toggle-favorite="game.toggleFavorite"
         />
 
-        <section class="hint-list" aria-label="提示候选">
+        <section class="hint-list" :class="{ active: hasAskedForHints }" aria-label="提示候选">
           <div class="section-title">
             <h2>提示候选</h2>
-            <span>{{ hintOptions.length }} 个</span>
+            <span>{{ hasAskedForHints ? `${hintOptions.length} 个` : '未查看' }}</span>
           </div>
 
           <button
@@ -115,7 +130,7 @@ function fillHint(word: string): void {
             <span>{{ idiom.definition }}</span>
           </button>
 
-          <p v-if="hintOptions.length === 0" class="empty-note">需要时点一下提示，这里会给出可接成语。</p>
+          <p v-if="hintOptions.length === 0" class="empty-note">{{ hintEmptyText }}</p>
         </section>
       </aside>
     </section>
