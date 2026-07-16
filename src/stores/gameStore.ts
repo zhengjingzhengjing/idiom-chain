@@ -1,5 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { requestAiIdiom } from '../services/aiIdiomService'
+import { AiLevel, GameStatus, Player } from '../enums/idiom'
 import {
   canChain,
   createCustomIdiom,
@@ -11,7 +13,7 @@ import {
   normalizeIdiomInput,
   pickAiIdiom,
 } from '../services/idiomEngine'
-import type { AiLevel, ChainEntry, GameStatus, IdiomWithMeta, Player } from '../types/idiom'
+import type { ChainEntry, IdiomWithMeta } from '../types/idiom'
 
 const FAVORITES_KEY = 'idiom-chain:favorites'
 
@@ -19,10 +21,11 @@ export const useGameStore = defineStore('game', () => {
   const history = ref<ChainEntry[]>([])
   const usedWords = ref<Set<string>>(new Set())
   const favorites = ref<Set<string>>(loadFavorites())
-  const status = ref<GameStatus>('idle')
-  const aiLevel = ref<AiLevel>('normal')
-  const message = ref('输入任意成语开始接龙，系统会自动回应。')
+  const status = ref<GameStatus>(GameStatus.Idle)
+  const aiLevel = ref<AiLevel>(AiLevel.Normal)
+  const message = ref('输入任意成语开始，AI 会自动接下一句。')
   const hintOptions = ref<IdiomWithMeta[]>([])
+  const isAiThinking = ref(false)
 
   const lastEntry = computed(() => history.value.at(-1))
   const currentIdiom = computed(() => lastEntry.value?.idiom)
@@ -31,14 +34,18 @@ export const useGameStore = defineStore('game', () => {
   const totalIdiomCount = computed(() => getTotalIdiomCount())
   const learnedIdioms = computed(() => history.value.map((entry) => entry.idiom))
 
-  function submitHumanIdiom(input: string): void {
+  async function submitHumanIdiom(input: string): Promise<void> {
+    if (isAiThinking.value) {
+      return
+    }
+
     const word = normalizeIdiomInput(input)
     const idiom = findIdiom(word) ?? createCustomIdiom(word)
 
     hintOptions.value = []
 
-    if (status.value === 'won' || status.value === 'lost') {
-      message.value = '本局已经结束，可以重新开始一局。'
+    if (status.value === GameStatus.Won || status.value === GameStatus.Lost) {
+      message.value = '本局已经结束，可以重开一局。'
       return
     }
 
@@ -53,41 +60,37 @@ export const useGameStore = defineStore('game', () => {
       return
     }
 
-    addEntry(idiom, 'human')
+    addEntry(idiom, Player.Human)
+    status.value = GameStatus.Playing
+    message.value = `接收「${idiom.word}」，DeepSeek 正在接龙...`
+    isAiThinking.value = true
 
-    const aiIdiom = pickAiIdiom(idiom, usedWords.value, aiLevel.value)
-    if (!aiIdiom) {
-      status.value = 'won'
-      message.value = `接受「${idiom.word}」。你赢了！AI 已经接不上了。`
-      return
+    try {
+      const { idiom: aiIdiom, source } = await getAiMove(idiom)
+      if (!aiIdiom) {
+        status.value = GameStatus.Won
+        message.value = `接收「${idiom.word}」。你赢了，AI 暂时接不上。`
+        return
+      }
+
+      addEntry(aiIdiom, Player.Ai)
+      finishAiMove(word, idiom, aiIdiom, source)
+    } finally {
+      isAiThinking.value = false
     }
-
-    addEntry(aiIdiom, 'ai')
-
-    const nextOptions = getHintOptions(aiIdiom, usedWords.value)
-    if (nextOptions.length === 0) {
-      message.value = `AI 出了「${aiIdiom.word}」，你暂时没有可接选项，本局结束。`
-      status.value = 'lost'
-      return
-    }
-
-    status.value = 'playing'
-    message.value = findIdiom(word)
-      ? `AI 接了「${aiIdiom.word}」，现在轮到你。`
-      : `接受词库外成语「${idiom.word}」。AI 接了「${aiIdiom.word}」，现在轮到你。`
   }
 
   function startWithRandomIdiom(): void {
     resetGame()
     const opening = getRandomOpeningIdiom()
-    addEntry(opening, 'ai')
-    status.value = 'playing'
+    addEntry(opening, Player.Ai)
+    status.value = GameStatus.Playing
     message.value = `AI 先手出了「${opening.word}」，你来接。`
   }
 
   function showHints(): void {
     if (!currentIdiom.value) {
-      message.value = '还没有起始成语，可以先输入一个，或让 AI 先手。'
+      message.value = '还没有起始成语，可以先输入一个，或者让 AI 先手。'
       return
     }
 
@@ -114,8 +117,37 @@ export const useGameStore = defineStore('game', () => {
     history.value = []
     usedWords.value = new Set()
     hintOptions.value = []
-    status.value = 'idle'
-    message.value = '输入任意成语开始接龙，系统会自动回应。'
+    status.value = GameStatus.Idle
+    isAiThinking.value = false
+    message.value = '输入任意成语开始，AI 会自动接下一句。'
+  }
+
+  async function getAiMove(idiom: IdiomWithMeta): Promise<{ idiom: IdiomWithMeta | null; source: 'deepseek' | 'local' }> {
+    const deepSeekResult = await requestAiIdiom({
+      previousWord: idiom.word,
+      usedWords: [...usedWords.value],
+      level: aiLevel.value,
+    })
+
+    if (deepSeekResult.idiom && validateAiMove(idiom, deepSeekResult.idiom)) {
+      return { idiom: deepSeekResult.idiom, source: 'deepseek' }
+    }
+
+    const localIdiom = pickAiIdiom(idiom, usedWords.value, aiLevel.value)
+    return { idiom: localIdiom, source: 'local' }
+  }
+
+  function finishAiMove(word: string, idiom: IdiomWithMeta, aiIdiom: IdiomWithMeta, source: 'deepseek' | 'local'): void {
+    const sourceText = source === 'deepseek' ? 'DeepSeek 接了' : 'DeepSeek 暂时没接上，本地词库接了'
+    const nextOptions = getHintOptions(aiIdiom, usedWords.value)
+    if (nextOptions.length === 0) {
+      message.value = `${sourceText}「${aiIdiom.word}」。如果你能想到「${aiIdiom.lastChar}」开头的成语，也可以继续挑战。`
+      return
+    }
+
+    message.value = findIdiom(word)
+      ? `${sourceText}「${aiIdiom.word}」，现在轮到你。`
+      : `接收词库外成语「${idiom.word}」。${sourceText}「${aiIdiom.word}」，现在轮到你。`
   }
 
   function validateHumanMove(idiom: IdiomWithMeta): string {
@@ -128,6 +160,10 @@ export const useGameStore = defineStore('game', () => {
     }
 
     return ''
+  }
+
+  function validateAiMove(previous: IdiomWithMeta, next: IdiomWithMeta): boolean {
+    return canChain(previous, next) && !usedWords.value.has(next.word)
   }
 
   function addEntry(idiom: IdiomWithMeta, player: Player): void {
@@ -146,6 +182,7 @@ export const useGameStore = defineStore('game', () => {
     favorites,
     hintOptions,
     history,
+    isAiThinking,
     learnedIdioms,
     message,
     roundCount,

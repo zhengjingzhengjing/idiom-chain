@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Player } from '../../enums/idiom'
 import type { ChainEntry } from '../../types/idiom'
 
 defineProps<{
@@ -15,7 +16,7 @@ defineProps<{
 
     <div v-if="entries.length > 0" class="timeline">
       <article v-for="entry in entries" :key="entry.id" class="chain-entry" :class="entry.player">
-        <span class="player-badge">{{ entry.player === 'human' ? '你' : 'AI' }}</span>
+        <span class="player-badge">{{ entry.player === Player.Human ? '你' : 'AI' }}</span>
         <div>
           <strong>{{ entry.idiom.word }}</strong>
           <p>{{ entry.idiom.pinyin }}</p>

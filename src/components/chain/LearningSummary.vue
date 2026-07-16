@@ -26,7 +26,7 @@ const favoriteCount = computed(() => uniqueIdioms.value.filter((idiom) => props.
   <section class="summary-band" aria-label="学习总结">
     <div>
       <p class="eyebrow">本局总结</p>
-      <h2>已经遇到 {{ uniqueIdioms.length }} 个成语，收藏 {{ favoriteCount }} 个。</h2>
+      <h2>遇到 {{ uniqueIdioms.length }} 个成语，收藏 {{ favoriteCount }} 个。</h2>
     </div>
 
     <div class="summary-list">

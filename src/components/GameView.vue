@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { AI_LEVEL_LABELS, AiLevel, GAME_STATUS_LABELS, GameStatus } from '../enums/idiom'
 import { useGameStore } from '../stores/gameStore'
-import type { AiLevel } from '../types/idiom'
 import ChainHistory from './chain/ChainHistory.vue'
 import IdiomDetail from './chain/IdiomDetail.vue'
 import LearningSummary from './chain/LearningSummary.vue'
@@ -15,6 +15,7 @@ const {
   favorites,
   hintOptions,
   history,
+  isAiThinking,
   learnedIdioms,
   message,
   roundCount,
@@ -23,20 +24,18 @@ const {
 } = storeToRefs(game)
 
 const input = ref('')
-const aiLevels: { label: string; value: AiLevel }[] = [
-  { label: '轻松', value: 'easy' },
-  { label: '普通', value: 'normal' },
-  { label: '挑战', value: 'hard' },
-]
+const aiLevels = Object.values(AiLevel)
 
-const canSubmit = computed(() => input.value.trim().length > 0 && status.value !== 'won' && status.value !== 'lost')
+const canSubmit = computed(
+  () => input.value.trim().length > 0 && !isAiThinking.value && status.value !== GameStatus.Won && status.value !== GameStatus.Lost,
+)
 
-function submit(): void {
+async function submit(): Promise<void> {
   if (!canSubmit.value) {
     return
   }
 
-  game.submitHumanIdiom(input.value)
+  await game.submitHumanIdiom(input.value)
   input.value = ''
 }
 
@@ -47,58 +46,52 @@ function fillHint(word: string): void {
 
 <template>
   <main class="app-shell">
-    <section class="game-header">
+    <section class="top-bar">
       <div>
-        <!--<p class="eyebrow">Vue3 单机练习</p>-->
-        <h2>成语接龙</h2>
+        <p class="eyebrow">成语接龙</p>
+        <h1>{{ chainHint }}</h1>
       </div>
 
       <div class="stats-row" aria-label="游戏统计">
         <span>词库 {{ totalIdiomCount }}</span>
         <span>回合 {{ roundCount }}</span>
-        <span>{{ status === 'idle' ? '待开始' : status === 'playing' ? '进行中' : status === 'won' ? '胜利' : '结束' }}</span>
+        <span>{{ isAiThinking ? 'AI 思考中' : GAME_STATUS_LABELS[status] }}</span>
       </div>
     </section>
 
-    <section class="control-band">
+    <form class="input-panel" @submit.prevent="submit">
+      <input v-model="input" type="text" autocomplete="off" placeholder="输入你的成语" :disabled="isAiThinking" />
+      <button class="primary-button" type="submit" :disabled="!canSubmit">{{ isAiThinking ? '思考中' : '提交' }}</button>
+      <button class="secondary-button" type="button" :disabled="isAiThinking" @click="game.showHints">提示</button>
+    </form>
+
+    <p class="message">{{ message }}</p>
+
+    <section class="toolbar">
       <div class="level-group" aria-label="AI 难度">
         <button
           v-for="level in aiLevels"
-          :key="level.value"
+          :key="level"
           class="segmented-button"
-          :class="{ active: aiLevel === level.value }"
+          :class="{ active: aiLevel === level }"
           type="button"
-          @click="game.setAiLevel(level.value)"
+          :disabled="isAiThinking"
+          @click="game.setAiLevel(level)"
         >
-          {{ level.label }}
+          {{ AI_LEVEL_LABELS[level] }}
         </button>
       </div>
 
       <div class="action-group">
-        <button class="ghost-button" type="button" @click="game.startWithRandomIdiom">AI 先手</button>
+        <button class="ghost-button" type="button" :disabled="isAiThinking" @click="game.startWithRandomIdiom">AI 先手</button>
         <button class="ghost-button" type="button" @click="game.resetGame">重开</button>
       </div>
     </section>
 
     <section class="workspace">
-      <div class="play-panel">
-        <ChainHistory :entries="history" />
+      <ChainHistory :entries="history" />
 
-        <form class="input-panel" @submit.prevent="submit">
-          <div>
-            <p class="hint-label">{{ chainHint }}</p>
-            <p class="message">{{ message }}</p>
-          </div>
-
-          <div class="input-row">
-            <input v-model="input" type="text" autocomplete="off" placeholder="输入你的成语" />
-            <button class="primary-button" type="submit" :disabled="!canSubmit">提交</button>
-            <button class="secondary-button" type="button" @click="game.showHints">提示</button>
-          </div>
-        </form>
-      </div>
-
-      <aside class="study-panel">
+      <aside class="side-panel">
         <IdiomDetail
           :idiom="currentIdiom"
           :is-favorite="currentIdiom ? favorites.has(currentIdiom.word) : false"
@@ -122,7 +115,7 @@ function fillHint(word: string): void {
             <span>{{ idiom.definition }}</span>
           </button>
 
-          <p v-if="hintOptions.length === 0" class="empty-note">需要时点一下提示，这里会放出可接成语。</p>
+          <p v-if="hintOptions.length === 0" class="empty-note">需要时点一下提示，这里会给出可接成语。</p>
         </section>
       </aside>
     </section>

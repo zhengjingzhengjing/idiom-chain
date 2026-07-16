@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { DIFFICULTY_LABELS } from '../../enums/idiom'
 import type { IdiomWithMeta } from '../../types/idiom'
 
 defineProps<{
@@ -14,8 +15,8 @@ defineEmits<{
 <template>
   <section class="idiom-detail" aria-label="成语释义">
     <div class="section-title">
-      <h2>当前学习</h2>
-      <span v-if="idiom">{{ idiom.difficulty }}</span>
+      <h2>当前成语</h2>
+      <span v-if="idiom">{{ DIFFICULTY_LABELS[idiom.difficulty] }}</span>
     </div>
 
     <div v-if="idiom" class="detail-content">
@@ -43,6 +44,6 @@ defineEmits<{
       </dl>
     </div>
 
-    <p v-else class="empty-note">每出现一个成语，这里会显示拼音、释义和例句。</p>
+    <p v-else class="empty-note">出现成语后，这里会显示拼音、释义和例句。</p>
   </section>
 </template>
