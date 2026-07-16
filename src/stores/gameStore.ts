@@ -25,6 +25,7 @@ export const useGameStore = defineStore('game', () => {
   const aiLevel = ref<AiLevel>(AiLevel.Normal)
   const message = ref('输入任意成语开始，AI 会自动接下一句。')
   const hintOptions = ref<IdiomWithMeta[]>([])
+  const hasAskedForHints = ref(false)
   const isAiThinking = ref(false)
 
   const lastEntry = computed(() => history.value.at(-1))
@@ -43,6 +44,7 @@ export const useGameStore = defineStore('game', () => {
     const idiom = findIdiom(word) ?? createCustomIdiom(word)
 
     hintOptions.value = []
+    hasAskedForHints.value = false
 
     if (status.value === GameStatus.Won || status.value === GameStatus.Lost) {
       message.value = '本局已经结束，可以重开一局。'
@@ -89,14 +91,24 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function showHints(): void {
+    hasAskedForHints.value = true
+
     if (!currentIdiom.value) {
-      message.value = '还没有起始成语，可以先输入一个，或者让 AI 先手。'
+      hintOptions.value = []
+      message.value = '还没有起始成语。先输入一个，或者让 AI 先手。'
       return
     }
 
     const options = getHintOptions(currentIdiom.value, usedWords.value)
     hintOptions.value = options
-    message.value = options.length > 0 ? '给你几个可接的成语，先看释义再决定。' : '当前小词库里没有可接的成语了。'
+
+    if (options.length > 0) {
+      const targetChar = currentIdiom.value.lastChar
+      message.value = `找到 ${options.length} 个「${targetChar}」字开头的本地提示，点候选可以自动填入。`
+      return
+    }
+
+    message.value = `本地词库暂时没有「${currentIdiom.value.lastChar}」字开头的提示，但你仍然可以自己输入，提交后 DeepSeek 会尝试接龙。`
   }
 
   function toggleFavorite(word: string): void {
@@ -117,6 +129,7 @@ export const useGameStore = defineStore('game', () => {
     history.value = []
     usedWords.value = new Set()
     hintOptions.value = []
+    hasAskedForHints.value = false
     status.value = GameStatus.Idle
     isAiThinking.value = false
     message.value = '输入任意成语开始，AI 会自动接下一句。'
@@ -180,6 +193,7 @@ export const useGameStore = defineStore('game', () => {
     chainHint,
     currentIdiom,
     favorites,
+    hasAskedForHints,
     hintOptions,
     history,
     isAiThinking,

@@ -307,6 +307,11 @@ dd {
   text-align: left;
 }
 
+.hint-list.active {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
 .hint-option span {
   display: block;
   margin-top: 4px;
