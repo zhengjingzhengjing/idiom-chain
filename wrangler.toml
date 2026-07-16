@@ -1,0 +1,8 @@
+   name = "idiom-chain"
+   compatibility_date = "2024-01-01"
+   
+   # 明确指定 worker 入口文件（Vite 会把 public/_worker.js 复制到 dist/_worker.js）
+   main = "./dist/_worker.js"
+   
+   [site]
+   bucket = "./dist"
